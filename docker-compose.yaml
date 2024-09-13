@@ -1,0 +1,76 @@
+version: '3.9'
+
+services:
+  fetch-data:
+    container_name: fetch-data
+    build: 
+     context: ./
+     dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - postgres
+      - elasticsearch
+    
+  postgres:
+    container_name: postgres
+    build:
+      context: ./postgres/
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "5433:5433"
+    expose:
+      - 5433
+    environment:
+      - POSTGRES_DB=datasync
+      - POSTGRES_USER=datasync
+      - POSTGRES_PASSWORD=ra5hoxetRami5
+      - POSTGRES_PORT=5432
+    volumes:
+      - postgresvolume:/var/lib/postgresql/data
+
+  elasticsearch:
+    container_name: elasticsearch
+    image: elasticsearch:8.15.1
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticvolume:/usr/share/elasticsearch/data
+
+  kibana:
+    container_name: kibana
+    image: kibana:8.15.1
+    restart: always
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200    # address of elasticsearch docker container which kibana will connect
+    ports:
+      - 5601:5601
+    depends_on:
+      - elasticsearch  
+
+  logstash:
+    container_name: logstash
+    build: 
+      context: ./logstash/
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - CONFIG_SUPPORT_ESCAPE=true
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+      - postgres
+    volumes:
+      - logstashvolume:/usr/share/logstash/data
+
+volumes:
+  postgresvolume:
+  elasticvolume:
+  logstashvolume: 
